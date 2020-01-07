@@ -19,16 +19,26 @@ namespace deniskyashif_learn
             }
         }
 
-        static async Task<int> ChannelsDemo() 
+        static async Task ChannelsDemo() 
         {
-            Channel<string> ch = Channel.CreateUnbounded<string>();
-            await ch.Writer.WriteAsync("My first message");
-            await ch.Writer.WriteAsync("My second message");
-            ch.Writer.Complete();
+            var ch = Channel.CreateUnbounded<string>();
 
-            while(await ch.Reader.WaitToReadAsync()) 
-                Console.WriteLine(await ch.Reader.ReadAsync());
-            return 0;
+            var consumer = Task.Run(async () => 
+            {
+                while(await ch.Reader.WaitToReadAsync())
+                    Console.WriteLine(await ch.Reader.ReadAsync());
+            });
+
+            var producer = Task.Run(async () => {
+               var rnd = new Random();
+               for(int i = 0; i < 5; i++) {
+                   await Task.Delay(TimeSpan.FromSeconds(rnd.Next(3)));
+                   await ch.Writer.WriteAsync($"Message {i}");
+               } 
+               ch.Writer.Complete();
+            });
+
+            await Task.WhenAll(producer, consumer);
         }
     }
 }
